@@ -1,6 +1,6 @@
 #!/usr/bin/env make
 
-all:	tests
+all:
 
 test:	tests
 

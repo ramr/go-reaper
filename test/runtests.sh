@@ -5,11 +5,17 @@ readonly MAX_SLEEP_TIME=$((5 + 2))
 readonly IMAGE="reaper/test"
 
 
+function get_sleepers() {
+  ps -ef -p $1 | grep sleep | grep -v grep
+
+}  #  End of function  get_sleepers.
+
+
 function check_orphans() {
   local pid1=$1
 
   sleep $MAX_SLEEP_TIME
-  local orphans=$(ps -ef -p $pid1 | grep sleep | grep -v grep)
+  local orphans=$(get_sleepers "$pid1")
   if [ -n "$orphans" ]; then
     echo ""
     echo "FAIL: Got orphan processes attached to pid $pid1"
@@ -54,6 +60,9 @@ function run_tests() {
 
   echo "  - Sending SIGUSR1 to pid1=$pid1 to start more workers ..."
   kill -USR1 "$pid1"
+
+  sleep 1
+  echo "  - PID $pid1 now has $(get_sleepers "$pid1" | wc -l) sleepers."
 
   echo "  - Sleeping once again for $MAX_SLEEP_TIME seconds ..."
   sleep $MAX_SLEEP_TIME
