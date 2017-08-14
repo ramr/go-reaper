@@ -4,6 +4,8 @@
 readonly MAX_SLEEP_TIME=$((5 + 2))
 readonly IMAGE="reaper/test"
 
+logfile="/tmp/reaper_test.log"
+
 
 function get_sleepers() {
   ps -ef -p $1 | grep sleep | grep -v grep
@@ -32,14 +34,24 @@ function check_orphans() {
 
 
 function terminate_container() {
+    docker logs "$1" > "$logfile"
+    echo "  - Container logs saved to $logfile"
+
     echo "  - Terminated container $(docker rm -f "$1")"
 
 }  #  End of function  terminate_container.
 
 
 function run_tests() {
-  echo "  - Starting docker container running image $IMAGE ..."
-  local elcid=$(docker run -dit $IMAGE)
+  local image=${1:-"${IMAGE}"}
+
+  logfile="/tmp/$(echo ${image} | sed 's#/#_#g').log"
+
+  echo "  - Removing any existing log file $logfile ... "
+  rm -f "$logfile"
+
+  echo "  - Starting docker container running image ${image} ..."
+  local elcid=$(docker run -dit "${image}")
   
   echo "  - Docker container name=$elcid"
   local pid1=$(docker inspect --format '{{.State.Pid}}' $elcid)
