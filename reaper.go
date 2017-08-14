@@ -9,8 +9,9 @@ import "os/signal"
 import "syscall"
 
 type Config struct {
-	Pid     int
-	Options int
+	Pid              int
+	Options          int
+	DisablePid1Check bool
 }
 
 //  Handle death of child (SIGCHLD) messages. Pushes the signal onto the
@@ -82,24 +83,20 @@ func reapChildren(config Config) {
 func Reap() {
 	/*
 	 *  Only reap processes if we are taking over init's duties aka
-	 *  we are running as pid 1 inside a docker container.
+	 *  we are running as pid 1 inside a docker container. The default
+	 *  is to reap all processes.
 	 */
-	if 1 == os.Getpid() {
-		config := Config{Pid: -1, Options: 0}
-
-		/*
-		 *  Ok, we are the grandma of 'em all, so we get to play
-		 *  the grim reaper.
-		 *  You will be missed, Terry Pratchett!! RIP
-		 */
-		go reapChildren(config)
-	}
+	Start(Config{
+		Pid:              -1,
+		Options:          0,
+		DisablePid1Check: false,
+	})
 
 } /*  End of [exported] function  Reap.  */
 
-//  Entry point for invoking the reaper code bypassing pid 1 checks and
-//  with a specific configuration. Starts reaping children in the background
-//  inside a goroutine.
+//  Entry point for invoking the reaper code with a specific configuration.
+//  The config allows you to bypass the pid 1 checks, so handle with care.
+//  The child processes are reaped in the background inside a goroutine.
 func Start(config Config) {
 	/*
 	 *  Start the Reaper with configuration options. This allows you to
@@ -108,6 +105,19 @@ func Start(config Config) {
 	 *
 	 *  In most cases, you are better off just using Reap() as that
 	 *  checks if we are running as Pid 1.
+	 */
+	if !config.DisablePid1Check {
+		mypid := os.Getpid()
+		if 1 != mypid {
+			fmt.Printf(" - Grim reaper disabled, pid not 1\n")
+			return
+		}
+	}
+
+	/*
+	 *  Ok, so either pid 1 checks are disabled or we are the grandma
+	 *  of 'em all, either way we get to play the grim reaper.
+	 *  You will be missed, Terry Pratchett!! RIP
 	 */
 	go reapChildren(config)
 
