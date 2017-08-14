@@ -52,7 +52,7 @@ function run_tests() {
 
   echo "  - Starting docker container running image ${image} ..."
   local elcid=$(docker run -dit "${image}")
-  
+
   echo "  - Docker container name=$elcid"
   local pid1=$(docker inspect --format '{{.State.Pid}}' $elcid)
 
@@ -68,10 +68,11 @@ function run_tests() {
     echo "FAIL: All tests failed - (1/1)"
     exit -1
   fi
-  
+ 
 
-  echo "  - Sending SIGUSR1 to pid1=$pid1 to start more workers ..."
-  kill -USR1 "$pid1"
+  local cname=$(echo "$elcid" | cut -c 1-12)
+  echo "  - Sending SIGUSR1 to $cname (pid $pid1) to start more workers ..."
+  docker kill -s USR1 "$elcid"
 
   sleep 1
   echo "  - PID $pid1 now has $(get_sleepers "$pid1" | wc -l) sleepers."
