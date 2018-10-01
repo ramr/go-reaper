@@ -7,11 +7,13 @@ import "fmt"
 import "os"
 import "os/signal"
 import "syscall"
+import "golang.org/x/sys/unix"
 
 type Config struct {
-	Pid              int
-	Options          int
-	DisablePid1Check bool
+	Pid                  int
+	Options              int
+	DisablePid1Check     bool
+	EnableChildSubreaper bool
 }
 
 //  Handle death of child (SIGCHLD) messages. Pushes the signal onto the
@@ -87,9 +89,10 @@ func Reap() {
 	 *  is to reap all processes.
 	 */
 	Start(Config{
-		Pid:              -1,
-		Options:          0,
-		DisablePid1Check: false,
+		Pid:                  -1,
+		Options:              0,
+		DisablePid1Check:     false,
+		EnableChildSubreaper: true,
 	})
 
 } /*  End of [exported] function  Reap.  */
@@ -109,8 +112,17 @@ func Start(config Config) {
 	if !config.DisablePid1Check {
 		mypid := os.Getpid()
 		if 1 != mypid {
-			fmt.Printf(" - Grim reaper disabled, pid not 1\n")
-			return
+			if config.EnableChildSubreaper {
+				fmt.Printf(" - Not pid 1, enabling subreaper\n")
+				err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)
+				if err != nil {
+					fmt.Printf(" - Failed to enable subreaper: %s\n", err)
+					return
+				}
+			} else {
+				fmt.Printf(" - Grim reaper disabled, pid not 1, subreaper disabled\n")
+				return
+			}
 		}
 	}
 
