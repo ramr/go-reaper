@@ -12,6 +12,7 @@ type Config struct {
 	Pid              int
 	Options          int
 	DisablePid1Check bool
+	Debug            bool
 }
 
 //  Handle death of child (SIGCHLD) messages. Pushes the signal onto the
@@ -47,7 +48,9 @@ func reapChildren(config Config) {
 
 	for {
 		var sig = <-notifications
-		fmt.Printf(" - Received signal %v\n", sig)
+		if config.Debug {
+			fmt.Printf(" - Received signal %v\n", sig)
+		}
 		for {
 			var wstatus syscall.WaitStatus
 
@@ -64,8 +67,10 @@ func reapChildren(config Config) {
 				break
 			}
 
-			fmt.Printf(" - Grim reaper cleanup: pid=%d, wstatus=%+v\n",
-				pid, wstatus)
+			if config.Debug {
+				fmt.Printf(" - Grim reaper cleanup: pid=%d, wstatus=%+v\n",
+					pid, wstatus)
+			}
 
 		}
 	}
@@ -109,7 +114,9 @@ func Start(config Config) {
 	if !config.DisablePid1Check {
 		mypid := os.Getpid()
 		if 1 != mypid {
-			fmt.Printf(" - Grim reaper disabled, pid not 1\n")
+			if config.Debug {
+				fmt.Printf(" - Grim reaper disabled, pid not 1\n")
+			}
 			return
 		}
 	}
