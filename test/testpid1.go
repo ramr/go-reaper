@@ -13,9 +13,10 @@ import reaper "github.com/ramr/go-reaper"
 
 const NWORKERS = 3
 const REAPER_JSON_CONFIG = "/reaper/config/reaper.json"
+const NAME = "testpid1"
 
 func sleeper_test(set_proc_attributes bool) {
-	fmt.Printf(" - Set process attributes: %+v\n", set_proc_attributes)
+	fmt.Printf("%s: Set process attributes: %+v\n", NAME, set_proc_attributes)
 
 	cmd := exec.Command("sleep", "1")
 	if set_proc_attributes {
@@ -27,11 +28,9 @@ func sleeper_test(set_proc_attributes bool) {
 
 	err := cmd.Start()
 	if err != nil {
-		fmt.Printf(" - Error starting sleep command: %s\n", err)
+		fmt.Printf("%s: Error starting sleep command: %s\n", NAME, err)
 		return
 	}
-
-	fmt.Printf("Set proc attributes: %+v\n", set_proc_attributes)
 
 	// Sleep for a wee bit longer to allow the reaper to reap the
 	// command on a slow system.
@@ -40,10 +39,10 @@ func sleeper_test(set_proc_attributes bool) {
 	err = cmd.Wait()
 	if err != nil {
 		if set_proc_attributes {
-			fmt.Printf(" - Error waiting for command: %s\n",
+			fmt.Printf("%s: Error waiting for command: %s\n", NAME,
 				err)
 		} else {
-			fmt.Printf(" - Expected wait failure: %s\n", err)
+			fmt.Printf("%s: Expected wait failure: %s\n", NAME, err)
 		}
 	}
 
@@ -54,14 +53,14 @@ func start_workers() {
 	//  "orphaned".
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		fmt.Printf(" - Error getting script dir - %s\n", err)
+		fmt.Printf("%s: Error getting script dir - %s\n", NAME, err)
 		return
 	}
 
 	var scriptFile = fmt.Sprintf("%s/bin/script.sh", dir)
 	script, err := filepath.Abs(scriptFile)
 	if err != nil {
-		fmt.Printf(" - Error getting script - %s\n", scriptFile)
+		fmt.Printf("%s: Error getting script - %s\n", NAME, scriptFile)
 		return
 	}
 
@@ -69,7 +68,7 @@ func start_workers() {
 	var cmd = exec.Command(script, args)
 	cmd.Start()
 
-	fmt.Printf("  - Started worker: %s %s\n", script, args)
+	fmt.Printf("%s: Started worker: %s %s\n", NAME, script, args)
 
 } /*  End of function  start_workers.  */
 
@@ -85,10 +84,12 @@ func main() {
 		decoder := json.NewDecoder(configFile)
 		err = decoder.Decode(&config)
 		if err == nil {
+			fmt.Printf("%s: Using config %s\n", NAME,
+				REAPER_JSON_CONFIG)
 			useConfig = true
 		} else {
-			fmt.Printf(" - Error: Invalid json config: %s", err)
-			fmt.Printf(" - Using defaults ... ")
+			fmt.Printf("%s: Error in json config: %s\n", NAME, err)
+			fmt.Printf("%s: Using defaults ...\n", NAME)
 		}
 	}
 
@@ -112,7 +113,7 @@ func main() {
 	for {
 		select {
 		case <-sig:
-			fmt.Println("  - Got SIGUSR1, adding workers ...")
+			fmt.Printf("%s: Got SIGUSR1, adding workers ...\n", NAME)
 			start_workers()
 		}
 
