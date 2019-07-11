@@ -47,6 +47,7 @@ reaper.
 		config := reaper.Config{
 			Pid:              0,
 			Options:          0,
+			Debug:            true,
 			DisablePid1Check: false,
 		}
 
