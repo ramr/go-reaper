@@ -15,10 +15,10 @@ tl;dr
 
 		//  Rest of your code ...
 
-        //  Note: If you are also managing processes within your code aka
-        //        execing commands or include some code that does do that,
-        //        please refer to the section titled
-        //        "[Into The Woods]"(https://github.com/ramr/go-reaper#into-the-woods)
+		//  Note: If you also manage processes within your code aka
+		//        exec commands or include some code that does do that,
+		//        please refer to the section titled
+		//        "[Into The Woods]"(https://github.com/ramr/go-reaper#into-the-woods)
        }
 
 
