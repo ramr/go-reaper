@@ -40,7 +40,7 @@ Usage:
 For basic usage, see the tl;dr section above. This should be the
 most commonly used route you'd need to take.
 
-##Road Less Traveled
+## Road Less Traveled
 But for those that prefer to go down "the road less traveled", you can
 control whether to disable pid 1 checks and/or control the options passed to
 the `wait4` (or `waitpid`) system call by passing configuration to the
@@ -68,13 +68,11 @@ The `Pid` and `Options` fields in the configuration are the `pid` and
 `options` passed to the linux `wait4` system call.
 
 
-See the man pages for the `wait4` or `waitpid` system call for details.
-
-      [wait4](https://linux.die.net/man/2/wait4)
-      [waitpid](https://linux.die.net/man/2/waitpid)
+See the man pages for the [wait4](https://linux.die.net/man/2/wait4) or
+[waitpid](https://linux.die.net/man/2/waitpid) system call for details.
 
 
-##Into The Woods
+## Into The Woods
 And finally, this part is for those folks that want to go into the woods.
 This could be required when you need to manage the processes you invoke inside
 your code (ala with `os.exec.Command*` or `syscall.ForkExec` or any variants)
