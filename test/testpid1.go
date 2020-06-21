@@ -72,10 +72,7 @@ func start_workers() {
 
 } /*  End of function  start_workers.  */
 
-func main() {
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, syscall.SIGUSR1)
-
+func start_reaper() {
 	useConfig := false
 	config := reaper.Config{}
 
@@ -107,6 +104,12 @@ func main() {
 		go reaper.Reap()
 	}
 
+} /*  End of function start_reaper.  */
+
+func launch_test() {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGUSR1)
+
 	/*  Start the initial set of workers ... */
 	start_workers()
 
@@ -118,5 +121,11 @@ func main() {
 		}
 
 	} /*  End of while doomsday ... */
+
+} /*  End of function  launch_test.  */
+
+func main() {
+	start_reaper()
+	launch_test()
 
 } /*  End of function  main.  */
