@@ -123,7 +123,10 @@ process ...
 			pid, _ := syscall.ForkExec(args[0], args, pattrs)
 
 			// fmt.Printf("kiddo-pid = %d\n", pid)
-			syscall.Wait4(pid, &wstatus, 0, nil)
+			_, err = syscall.Wait4(pid, &wstatus, 0, nil)
+			for syscall.EINTR == err {
+				_, err = syscall.Wait4(pid, &wstatus, 0, nil)
+			}
 
 			// If you put this code into a function, then exit here.
 			os.Exit(0)
