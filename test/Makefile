@@ -13,7 +13,7 @@ clean:
 
 test:	tests
 
-tests:	image-test debug-on-test non-pid1-test
+tests:	image-test debug-on-test non-pid1-test oop-init-test
 
 image-test:
 	(build/image.sh "$(TEST_IMAGE)" "fixtures/no-config";  \
@@ -28,3 +28,7 @@ non-pid1-test:
 	(build/image.sh "$(NON_PID1_CONFIG_TEST_IMAGE)"   \
 	                "fixtures/json-config/non-pid1";  \
 	 ./runtests.sh "$(NON_PID1_CONFIG_TEST_IMAGE)" )
+
+oop-init-test:
+	(build/image.sh "$(TEST_IMAGE)" "fixtures/oop-init";  \
+	 ./runtests.sh "$(TEST_IMAGE)" )
