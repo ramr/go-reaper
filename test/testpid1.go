@@ -1,17 +1,19 @@
 package main
 
-import "encoding/json"
-import "fmt"
-import "os"
-import "os/signal"
-import "os/exec"
-import "path/filepath"
-import "syscall"
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
 
-import reaper "github.com/ramr/go-reaper"
+	reaper "github.com/ramr/go-reaper"
+)
 
-const NWORKERS = 3
+const SCRIPT_THREADS_NUM = 3
 const REAPER_JSON_CONFIG = "/reaper/config/reaper.json"
 const NAME = "testpid1"
 
@@ -64,8 +66,10 @@ func start_workers() {
 		return
 	}
 
-	var args = fmt.Sprintf("%d", NWORKERS)
+	var args = fmt.Sprintf("%d", SCRIPT_THREADS_NUM)
 	var cmd = exec.Command(script, args)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.Start()
 
 	fmt.Printf("%s: Started worker: %s %s\n", NAME, script, args)
@@ -74,7 +78,17 @@ func start_workers() {
 
 func start_reaper() {
 	useConfig := false
-	config := reaper.Config{}
+	var onReap reaper.ReapCallback = func(pid int, wstatus syscall.WaitStatus) {
+		fmt.Printf("%s: Child process %d exited with code %d\n", NAME, pid, wstatus.ExitStatus())
+	}
+
+	defaultConfig := reaper.Config{
+		Pid:              -1,
+		Options:          0,
+		DisablePid1Check: false,
+		OnReap:           onReap,
+	}
+	config := defaultConfig
 
 	configFile, err := os.Open(REAPER_JSON_CONFIG)
 	if err == nil {
@@ -83,6 +97,8 @@ func start_reaper() {
 		if err == nil {
 			fmt.Printf("%s: Using config %s\n", NAME,
 				REAPER_JSON_CONFIG)
+			fmt.Printf("%s: Make chan\n", NAME)
+			config.OnReap = onReap
 			useConfig = true
 		} else {
 			fmt.Printf("%s: Error in json config: %s\n", NAME, err)
@@ -101,7 +117,8 @@ func start_reaper() {
 		go sleeper_test(false)
 
 	} else {
-		go reaper.Reap()
+		go reaper.Start(defaultConfig)
+		// go reaper.Reap()
 	}
 
 } /*  End of function start_reaper.  */
