@@ -3,20 +3,25 @@ package reaper
 /*  Note:  This is a *nix only implementation.  */
 
 //  Prefer #include style directives.
-import "fmt"
-import "os"
-import "os/signal"
-import "syscall"
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+)
+
+type ReapCallback func(pid int, wstatus syscall.WaitStatus)
 
 type Config struct {
 	Pid              int
 	Options          int
 	DisablePid1Check bool
+	OnReap           ReapCallback
 	Debug            bool
 }
 
-//  Handle death of child (SIGCHLD) messages. Pushes the signal onto the
-//  notifications channel if there is a waiter.
+// Handle death of child (SIGCHLD) messages. Pushes the signal onto the
+// notifications channel if there is a waiter.
 func sigChildHandler(notifications chan os.Signal) {
 	var sigs = make(chan os.Signal, 3)
 	signal.Notify(sigs, syscall.SIGCHLD)
@@ -37,7 +42,7 @@ func sigChildHandler(notifications chan os.Signal) {
 
 } /*  End of function  sigChildHandler.  */
 
-//  Be a good parent - clean up behind the children.
+// Be a good parent - clean up behind the children.
 func reapChildren(config Config) {
 	var notifications = make(chan os.Signal, 1)
 
@@ -72,6 +77,9 @@ func reapChildren(config Config) {
 					pid, wstatus)
 			}
 
+			if config.OnReap != nil {
+				config.OnReap(pid, wstatus)
+			}
 		}
 	}
 
@@ -83,8 +91,8 @@ func reapChildren(config Config) {
  *  ======================================================================
  */
 
-//  Normal entry point for the reaper code. Start reaping children in the
-//  background inside a goroutine.
+// Normal entry point for the reaper code. Start reaping children in the
+// background inside a goroutine.
 func Reap() {
 	/*
 	 *  Only reap processes if we are taking over init's duties aka
@@ -99,9 +107,9 @@ func Reap() {
 
 } /*  End of [exported] function  Reap.  */
 
-//  Entry point for invoking the reaper code with a specific configuration.
-//  The config allows you to bypass the pid 1 checks, so handle with care.
-//  The child processes are reaped in the background inside a goroutine.
+// Entry point for invoking the reaper code with a specific configuration.
+// The config allows you to bypass the pid 1 checks, so handle with care.
+// The child processes are reaped in the background inside a goroutine.
 func Start(config Config) {
 	/*
 	 *  Start the Reaper with configuration options. This allows you to

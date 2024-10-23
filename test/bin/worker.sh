@@ -19,14 +19,15 @@ LOGFILE=/dev/null
 
 function start_sleeper() {
   local stype=${1:-"random"}
-  local delay=${2:-"$DEFAULT_DELAY_SECS"}
+  local exitCode=${2:-0}
+  local delay=${3:-"$DEFAULT_DELAY_SECS"}
 
   local sleeptime=$delay
   [ "$stype" = "random" ]  &&  sleeptime=$((RANDOM % $delay))
  
-   nohup sleep ${sleeptime} < /dev/null &> /dev/null &
+   nohup sh -c "sleep ${sleeptime} && exit ${exitCode}" < /dev/null &> /dev/null &
    pid=$!
-   echo "  - Worker: $$ - started $stype bg sleeper, pid=$pid" >> "$LOGFILE"
+   echo "  - Worker: $$ - started $stype bg sleeper, pid=$pid, exitCode=$exitCode" >> "$LOGFILE"
 
 }  #  End of function  start_sleeper.
 
@@ -36,11 +37,14 @@ function run_workers() {
   shift
 
   #  Start 1 fixed and 'n' random sleepers.
-  start_sleeper "fixed" "$@"
+  start_sleeper "fixed" 0 "$@"
 
   for i in $(seq $ntimes); do
-     start_sleeper "random" "$@"
+     start_sleeper "random" 0 "$@"
   done
+
+  start_sleeper "random" 1 "$@"
+  start_sleeper "random" 2 "$@"
 
 }  #  End of function  run_workers.
 
