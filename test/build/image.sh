@@ -20,13 +20,18 @@ function _build_image() {
 
   mkdir -p "${BUILD_DIR}"
 
-  cp    "${SRC_DIR}/testpid1.go" "${BUILD_DIR}"
+  pushd "${SRC_DIR}" > /dev/null
+
+  echo "  - building testpid1 ... "
+  go build testpid1.go
+
+  popd
+
+  cp    "${SRC_DIR}/testpid1"    "${BUILD_DIR}"
   cp -r "${SRC_DIR}/bin"         "${BUILD_DIR}"
   cp -r "${fixtures}"/*          "${BUILD_DIR}"
 
   pushd "${BUILD_DIR}" > /dev/null
-  echo "  - building testpid1 ... "
-  go build testpid1.go
   echo "  - building ${image} ... "
   docker build -t "${image}" .
   popd
