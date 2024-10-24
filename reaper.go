@@ -2,7 +2,6 @@ package reaper
 
 /*  Note:  This is a *nix only implementation.  */
 
-//  Prefer #include style directives.
 import (
 	"fmt"
 	"os"
@@ -10,17 +9,44 @@ import (
 	"syscall"
 )
 
+// Reaper callback.
 type ReapCallback func(pid int, wstatus syscall.WaitStatus)
 
+// Reaped process (child) status information.
+type Status struct {
+	Pid        int
+	Err        error
+	WaitStatus syscall.WaitStatus
+}
+
+// Reaper configuration.
 type Config struct {
 	Pid              int
 	Options          int
 	DisablePid1Check bool
 	OnReap           ReapCallback
+	StatusChannel    chan Status
 	Debug            bool
 }
 
-// Handle death of child (SIGCHLD) messages. Pushes the signal onto the
+// Send the child status on the status `ch` channel.
+func notify(ch chan Status, pid int, err error, ws syscall.WaitStatus) {
+	if ch == nil {
+		return
+	}
+
+	status := Status{Pid: pid, Err: err, WaitStatus: ws}
+
+	select {
+	case ch <- status: /*  Notified with the child status.  */
+	default: /*  blocked ... channel full or no reader!  */
+		fmt.Printf(" - Status channel full, lost pid %v: %+v\n",
+			pid, status)
+	}
+
+} /*  End of function  notify.  */
+
+// Handle death of child messages (SIGCHLD). Pushes the signal onto the
 // notifications channel if there is a waiter.
 func sigChildHandler(notifications chan os.Signal) {
 	var sigs = make(chan os.Signal, 3)
@@ -50,6 +76,7 @@ func reapChildren(config Config) {
 
 	pid := config.Pid
 	opts := config.Options
+	informer := config.StatusChannel
 
 	for {
 		var sig = <-notifications
@@ -78,7 +105,11 @@ func reapChildren(config Config) {
 			}
 
 			if config.OnReap != nil {
-				config.OnReap(pid, wstatus)
+				go config.OnReap(pid, wstatus)
+			}
+
+			if informer != nil {
+				go notify(informer, pid, err, wstatus)
 			}
 		}
 	}
