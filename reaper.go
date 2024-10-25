@@ -9,24 +9,20 @@ import (
 	"syscall"
 )
 
-// Reaper callback.
-type ReapCallback func(pid int, wstatus syscall.WaitStatus)
-
-// Reaped process (child) status information.
-type Status struct {
-	Pid        int
-	Err        error
-	WaitStatus syscall.WaitStatus
-}
-
 // Reaper configuration.
 type Config struct {
 	Pid              int
 	Options          int
 	DisablePid1Check bool
-	OnReap           ReapCallback
 	StatusChannel    chan Status
 	Debug            bool
+}
+
+// Reaped child process status information.
+type Status struct {
+	Pid        int
+	Err        error
+	WaitStatus syscall.WaitStatus
 }
 
 // Send the child status on the status `ch` channel.
@@ -36,6 +32,21 @@ func notify(ch chan Status, pid int, err error, ws syscall.WaitStatus) {
 	}
 
 	status := Status{Pid: pid, Err: err, WaitStatus: ws}
+
+	// The only case for recovery would be if the caller closes the
+	// `StatusChannel`. That is not really something recommended or
+	// as the normal `contract` is that the writer would close the
+	// channel as an EOF/EOD indicator.
+	// But stranger things have (sic) actually happened ...
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		fmt.Printf(" - Recovering from notify panic: %v\n", r)
+		fmt.Printf(" - Lost pid %v status: %+v\n", pid, status)
+	}()
 
 	select {
 	case ch <- status: /*  Notified with the child status.  */
@@ -102,10 +113,6 @@ func reapChildren(config Config) {
 			if config.Debug {
 				fmt.Printf(" - Grim reaper cleanup: pid=%d, wstatus=%+v\n",
 					pid, wstatus)
-			}
-
-			if config.OnReap != nil {
-				go config.OnReap(pid, wstatus)
 			}
 
 			if informer != nil {
