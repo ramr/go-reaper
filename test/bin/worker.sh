@@ -18,40 +18,42 @@ LOGFILE=/dev/null
 
 
 function start_sleeper() {
-  local stype=${1:-"random"}
-  local exitCode=${2:-0}
-  local delay=${3:-"$DEFAULT_DELAY_SECS"}
+    local stype=${1:-"random"}
+    local code=${2:-0}
+    local delay=${3:-"${DEFAULT_DELAY_SECS}"}
 
-  local sleeptime=$delay
-  [ "$stype" = "random" ]  &&  sleeptime=$((RANDOM % $delay))
+    local sleeptime=${delay}
+    [ "$stype" = "random" ]  &&  sleeptime=$((RANDOM % delay))
  
-   nohup sh -c "sleep ${sleeptime} && exit ${exitCode}" < /dev/null &> /dev/null &
-   pid=$!
-   echo "  - Worker: $$ - started $stype bg sleeper, pid=$pid, exitCode=$exitCode" >> "$LOGFILE"
+     nohup sh -c "sleep ${sleeptime} && exit ${code}" < /dev/null &> /dev/null &
+     pid=$!
+     echo "  - Worker: $$ - started ${stype} sleeper ..." >> "${LOGFILE}"
+     echo "    background pid=${pid}, exitcode=${code}" >> "${LOGFILE}"
 
 }  #  End of function  start_sleeper.
 
 
 function run_workers() {
-  local ntimes=${1:-"$DEFAULT_WORKERS"}
-  shift
+    local ntimes=${1:-"$DEFAULT_WORKERS"}
+    shift
 
-  #  Start 1 fixed and 'n' random sleepers.
-  start_sleeper "fixed" 0 "$@"
+    #  Start 1 fixed and 'n' random sleepers.
+    start_sleeper "fixed" 0 "$@"
 
-  for i in $(seq $ntimes); do
-     start_sleeper "random" 0 "$@"
-  done
+    #shellcheck disable=SC2034
+    for i in $(seq "${ntimes}"); do
+        start_sleeper "random" 0 "$@"
+    done
 
-  start_sleeper "random" 1 "$@"
-  start_sleeper "random" 2 "$@"
+    # Test with a bunch of different exit codes.
+    for code in 1 2 7 13 21 29 30 31 64 65 66 69 70 71 74 76 77 78 127; do
+        start_sleeper "random" "${code}" "$@"
+    done
 
 }  #  End of function  run_workers.
-
 
 
 #
 #  main():  Do the work starting up the appropriate number of workers.
 #
 run_workers "$@"
-

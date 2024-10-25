@@ -1,12 +1,17 @@
 #!/bin/bash
 
+set -euo pipefail
+
 
 readonly MAX_SLEEP_TIME=$((5 + 2))
 readonly IMAGE="reaper/test"
 
-logfile="/tmp/reaper_test.log"
+logfile="/tmp/reaper-tests/test.log"
 
 
+#
+#  Return list of sleeper processes.
+#
 function get_sleepers() {
     #shellcheck disable=SC2009
     ps -ef -p "$1" | grep sleep | grep -v grep
@@ -14,6 +19,9 @@ function get_sleepers() {
 }  #  End of function  get_sleepers.
 
 
+#
+#  Check for orphaned processes.
+#
 function check_orphans() {
     local pid1=$1
 
@@ -36,8 +44,16 @@ function check_orphans() {
 }  #  End of function  check_orphans.
 
 
+#
+#  Terminate docker container.
+#
 function terminate_container() {
+    local logdir=""
+    logdir=$(dirname "${logfile}")
+
+    mkdir -p "${logdir}"
     docker logs "$1" > "${logfile}"
+
     echo "  - Container logs saved to ${logfile}"
 
     echo "  - Terminated container $(docker rm -f "$1")"
@@ -45,23 +61,38 @@ function terminate_container() {
 }  #  End of function  terminate_container.
 
 
+#
+#  Run reaper tests.
+#
 function run_tests() {
     local image=${1:-"${IMAGE}"}
+    shift
 
-    logfile=/tmp/$(echo "${image}" | tr '/' '_').log
+    local name="test"
+    name=$(echo "${image}" | awk -F '/' '{print $NF}')
+
+    local config=${1:-""}
+    if [ -n "${config}" ]; then
+        config=$(basename "${config}")
+        name="${config%.*}"
+    fi
+
+    logfile="/tmp/reaper-tests/${name}.log"
 
     echo "  - Removing any existing log file ${logfile} ... "
     rm -f "${logfile}"
 
-    echo "  - Starting docker container running image ${image} ..."
+    echo "  - Starting docker container running image ${image} with"
+    echo "    command line arguments: $*"
     local elcid=""
-    elcid=$(docker run -dit "${image}")
+    elcid=$(docker run -dit "${image}" "$@")
 
     echo "  - Docker container name=${elcid}"
     local pid1=""
     pid1=$(docker inspect --format '{{.State.Pid}}' "${elcid}")
 
     echo "  - Docker container pid=${pid1}"
+    echo "  - PID ${pid1} has $(get_sleepers "${pid1}" | wc -l) sleepers."
     echo "  - Sleeping for ${MAX_SLEEP_TIME} seconds ..."
     sleep "${MAX_SLEEP_TIME}"
 
