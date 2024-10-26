@@ -2,21 +2,63 @@ package reaper
 
 /*  Note:  This is a *nix only implementation.  */
 
-//  Prefer #include style directives.
-import "fmt"
-import "os"
-import "os/signal"
-import "syscall"
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+)
 
+// Reaper configuration.
 type Config struct {
 	Pid              int
 	Options          int
 	DisablePid1Check bool
+	StatusChannel    chan Status
 	Debug            bool
 }
 
-//  Handle death of child (SIGCHLD) messages. Pushes the signal onto the
-//  notifications channel if there is a waiter.
+// Reaped child process status information.
+type Status struct {
+	Pid        int
+	Err        error
+	WaitStatus syscall.WaitStatus
+}
+
+// Send the child status on the status `ch` channel.
+func notify(ch chan Status, pid int, err error, ws syscall.WaitStatus) {
+	if ch == nil {
+		return
+	}
+
+	status := Status{Pid: pid, Err: err, WaitStatus: ws}
+
+	// The only case for recovery would be if the caller closes the
+	// `StatusChannel`. That is not really something recommended or
+	// as the normal `contract` is that the writer would close the
+	// channel as an EOF/EOD indicator.
+	// But stranger things have (sic) actually happened ...
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+
+		fmt.Printf(" - Recovering from notify panic: %v\n", r)
+		fmt.Printf(" - Lost pid %v status: %+v\n", pid, status)
+	}()
+
+	select {
+	case ch <- status: /*  Notified with the child status.  */
+	default: /*  blocked ... channel full or no reader!  */
+		fmt.Printf(" - Status channel full, lost pid %v: %+v\n",
+			pid, status)
+	}
+
+} /*  End of function  notify.  */
+
+// Handle death of child messages (SIGCHLD). Pushes the signal onto the
+// notifications channel if there is a waiter.
 func sigChildHandler(notifications chan os.Signal) {
 	var sigs = make(chan os.Signal, 3)
 	signal.Notify(sigs, syscall.SIGCHLD)
@@ -37,7 +79,7 @@ func sigChildHandler(notifications chan os.Signal) {
 
 } /*  End of function  sigChildHandler.  */
 
-//  Be a good parent - clean up behind the children.
+// Be a good parent - clean up behind the children.
 func reapChildren(config Config) {
 	var notifications = make(chan os.Signal, 1)
 
@@ -45,6 +87,7 @@ func reapChildren(config Config) {
 
 	pid := config.Pid
 	opts := config.Options
+	informer := config.StatusChannel
 
 	for {
 		var sig = <-notifications
@@ -72,6 +115,9 @@ func reapChildren(config Config) {
 					pid, wstatus)
 			}
 
+			if informer != nil {
+				go notify(informer, pid, err, wstatus)
+			}
 		}
 	}
 
@@ -83,8 +129,8 @@ func reapChildren(config Config) {
  *  ======================================================================
  */
 
-//  Normal entry point for the reaper code. Start reaping children in the
-//  background inside a goroutine.
+// Normal entry point for the reaper code. Start reaping children in the
+// background inside a goroutine.
 func Reap() {
 	/*
 	 *  Only reap processes if we are taking over init's duties aka
@@ -99,9 +145,9 @@ func Reap() {
 
 } /*  End of [exported] function  Reap.  */
 
-//  Entry point for invoking the reaper code with a specific configuration.
-//  The config allows you to bypass the pid 1 checks, so handle with care.
-//  The child processes are reaped in the background inside a goroutine.
+// Entry point for invoking the reaper code with a specific configuration.
+// The config allows you to bypass the pid 1 checks, so handle with care.
+// The child processes are reaped in the background inside a goroutine.
 func Start(config Config) {
 	/*
 	 *  Start the Reaper with configuration options. This allows you to

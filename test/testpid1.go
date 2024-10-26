@@ -1,21 +1,35 @@
 package main
 
-import "encoding/json"
-import "fmt"
-import "os"
-import "os/signal"
-import "os/exec"
-import "path/filepath"
-import "syscall"
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"math/rand"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
 
-import reaper "github.com/ramr/go-reaper"
+	reaper "github.com/ramr/go-reaper"
+)
 
-const NWORKERS = 3
+const SCRIPT_THREADS_NUM = 3
 const REAPER_JSON_CONFIG = "/reaper/config/reaper.json"
 const NAME = "testpid1"
 
-func sleeper_test(set_proc_attributes bool) {
+// Reaper test options.
+type TestOptions struct {
+	Pid              int
+	Options          int
+	DisablePid1Check bool
+	Debug            bool
+	Status           bool
+	StatusClose      bool
+}
+
+// Test with a process that sleeps for a short time.
+func sleeperTest(set_proc_attributes bool) {
 	fmt.Printf("%s: Set process attributes: %+v\n", NAME, set_proc_attributes)
 
 	cmd := exec.Command("sleep", "1")
@@ -46,9 +60,11 @@ func sleeper_test(set_proc_attributes bool) {
 		}
 	}
 
-} /*  End of function  sleeper_test.  */
+} /*  End of function  sleeperTest.  */
 
-func start_workers() {
+// Start up test workers that in turn startup child processes, which will
+// get orphaned.
+func startWorkers() {
 	//  Starts up workers - which in turn start up kids that get
 	//  "orphaned".
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
@@ -64,68 +80,145 @@ func start_workers() {
 		return
 	}
 
-	var args = fmt.Sprintf("%d", NWORKERS)
+	var args = fmt.Sprintf("%d", SCRIPT_THREADS_NUM)
 	var cmd = exec.Command(script, args)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	cmd.Start()
 
 	fmt.Printf("%s: Started worker: %s %s\n", NAME, script, args)
 
-} /*  End of function  start_workers.  */
+} /*  End of function  startWorkers.  */
 
-func start_reaper() {
-	useConfig := false
-	config := reaper.Config{}
+// Dump exit status of child processes. If flag is set it randomly tests
+// closing the status channel.
+func dumpChildExitStatus(channel chan reaper.Status, flag bool) {
+	if channel == nil {
+		return
+	}
 
-	configFile, err := os.Open(REAPER_JSON_CONFIG)
-	if err == nil {
-		decoder := json.NewDecoder(configFile)
-		err = decoder.Decode(&config)
-		if err == nil {
-			fmt.Printf("%s: Using config %s\n", NAME,
-				REAPER_JSON_CONFIG)
-			useConfig = true
-		} else {
-			fmt.Printf("%s: Error in json config: %s\n", NAME, err)
-			fmt.Printf("%s: Using defaults ...\n", NAME)
+	nreaped := 0
+	maxNotifications := 42 + rand.Intn(42)
+
+	for {
+		select {
+		case status, ok := <-channel:
+			if !ok {
+				// Channel closed, no more work to do.
+				fmt.Printf("%v: status channel closed\n", NAME)
+				return
+			}
+
+			nreaped += 1
+			exitCode := status.WaitStatus.ExitStatus()
+
+			fmt.Printf("%v: status of pid %v, exit code %v\n",
+				NAME, status.Pid, exitCode)
+
+			if flag && nreaped > maxNotifications {
+				close(channel)
+				fmt.Printf("%v: random channel close\n",
+					NAME)
+			}
 		}
+
+	} /*  End of while doomsday ...  */
+
+} /*  End of function  dumpChildExitStatus.  */
+
+// Load reaper json and make test options.
+func loadTestOptions(config string) *TestOptions {
+	configFile, err := os.Open(config)
+	if err != nil {
+		fmt.Printf("%s: No reaper config: %v\n", NAME, err)
+		return nil
 	}
 
+	options := TestOptions{
+		Pid:              -1,
+		Options:          0,
+		DisablePid1Check: false,
+	}
+
+	decoder := json.NewDecoder(configFile)
+	err = decoder.Decode(&options)
+	if err != nil {
+		fmt.Printf("%s: Error in json config: %s\n", NAME, err)
+		return nil
+	}
+
+	return &options
+
+} /*  End of function  loadTestOptions.  */
+
+// Start reaper.
+func startReaper(options *TestOptions) {
 	/*  Start the grim reaper ... */
-	if useConfig {
-		go reaper.Start(config)
-
-		/*  Run the sleeper test setting the process attributes.  */
-		go sleeper_test(true)
-
-		/*  And run test without setting process attributes.  */
-		go sleeper_test(false)
-
-	} else {
+	if options == nil {
+		// No options, test reaper with the default config.
+		fmt.Printf("%s: Using defaults ...\n", NAME)
 		go reaper.Reap()
+		return
 	}
 
-} /*  End of function start_reaper.  */
+	var statusChannel chan reaper.Status
 
-func launch_test() {
+	if options.Status {
+		flag := options.StatusClose
+
+		fmt.Printf("%s: testing status channel with %v\n", NAME, flag)
+		// make a buffered channel with max 42 entries.
+		statusChannel = make(chan reaper.Status, 42)
+		go dumpChildExitStatus(statusChannel, flag)
+	}
+
+	config := reaper.Config{
+		Pid:              options.Pid,
+		Options:          options.Options,
+		DisablePid1Check: options.DisablePid1Check,
+		Debug:            options.Debug,
+		StatusChannel:    statusChannel,
+	}
+
+	go reaper.Start(config)
+
+	/*  Run the sleeper test setting the process attributes.  */
+	go sleeperTest(true)
+
+	/*  And run test without setting process attributes.  */
+	go sleeperTest(false)
+
+} /*  End of function startReaper.  */
+
+// Launch the test processes.
+func launchTest() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGUSR1)
 
 	/*  Start the initial set of workers ... */
-	start_workers()
+	startWorkers()
 
 	for {
 		select {
 		case <-sig:
 			fmt.Printf("%s: Got SIGUSR1, adding workers ...\n", NAME)
-			start_workers()
+			startWorkers()
 		}
 
 	} /*  End of while doomsday ... */
 
-} /*  End of function  launch_test.  */
+} /*  End of function  launchTest.  */
 
+// main test entry point.
 func main() {
-	start_reaper()
-	launch_test()
+	config := REAPER_JSON_CONFIG
+	if len(os.Args) > 1 {
+		config = os.Args[1]
+	}
+
+	options := loadTestOptions(config)
+	startReaper(options)
+
+	launchTest()
 
 } /*  End of function  main.  */
