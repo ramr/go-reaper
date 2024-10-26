@@ -55,16 +55,16 @@ reaper and optionally get notified when child processes are reaped.
 			Options:          0,
 			Debug:            true,
 			DisablePid1Check: false,
-                        StatusChannel:    make(chan reaper.Status, 42),
-                        // StatusChannel:    nil,
+			StatusChannel:    make(chan reaper.Status, 42),
+			// StatusChannel:    nil,
 		}
 
 		//  Start background reaping of orphaned child processes.
 		go reaper.Start(config)
 
 		//  Only use this if you care about status notifications
-                //  for reaped process (aka StatusChannel != nil).
-                go func() {
+		//  for reaped process (aka StatusChannel != nil).
+		go func() {
                         select {
                                 case status, ok := <-config.StatusChannel:
                                         if !ok {
