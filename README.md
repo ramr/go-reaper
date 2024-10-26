@@ -42,9 +42,9 @@ most commonly used route you'd need to take.
 
 ## Road Less Traveled
 But for those that prefer to go down "the road less traveled", you can
-control whether to disable pid 1 checks and/or control the options passed to
-the `wait4` (or `waitpid`) system call by passing configuration to the
-reaper.
+control whether to disable pid 1 checks and/or control the options passed
+to the `wait4` (or `waitpid`) system call by passing configuration to the
+reaper and optionally get notified when child processes are reaped.
 
 
 	import reaper "github.com/ramr/go-reaper"
@@ -55,10 +55,24 @@ reaper.
 			Options:          0,
 			Debug:            true,
 			DisablePid1Check: false,
+                        StatusChannel:    make(chan reaper.Status, 42),
+                        // StatusChannel:    nil,
 		}
 
 		//  Start background reaping of orphaned child processes.
 		go reaper.Start(config)
+
+		//  Only use this if you care about status notifications
+                //  for reaped process (aka StatusChannel != nil).
+                go func() {
+                        select {
+                                case status, ok := <-config.StatusChannel:
+                                        if !ok {
+                                                return
+                                        }
+                                        // process status (reaper.Status)
+                        }
+                }()
 
 		//  Rest of your code ...
 	}
