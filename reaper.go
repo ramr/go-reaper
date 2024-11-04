@@ -161,20 +161,25 @@ func Start(config Config) {
 	 *  In most cases, you are better off just using Reap() as that
 	 *  checks if we are running as Pid 1.
 	 */
+	if config.EnableChildSubreaper {
+		/*
+		 *  Enabling the child sub reaper means that any orphaned
+		 *  descendant process will get "reparented" to us.
+		 *  And we then do the reaping when those processes die.
+		 */
+		fmt.Println(" - Enabling child subreaper ...")
+		err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)
+		if err != nil {
+			// Log the error and continue ...
+			fmt.Printf(" - Error enabling subreaper: %v\n", err)
+		}
+	}
+
 	if !config.DisablePid1Check {
 		mypid := os.Getpid()
 		if 1 != mypid {
-			if config.EnableChildSubreaper {
-				fmt.Printf(" - Not pid 1, enabling subreaper\n")
-				err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)
-				if err != nil {
-					fmt.Printf(" - Failed to enable subreaper: %s\n", err)
-					return
-				}
-			} else {
-				fmt.Printf(" - Grim reaper disabled, pid not 1, subreaper disabled\n")
-				return
-			}
+			fmt.Println(" - Grim reaper disabled, pid not 1")
+			return
 		}
 	}
 
