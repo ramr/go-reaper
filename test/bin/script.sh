@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 #
 #  Usage: $0 <num-threads> <worker-args>
 #         where:  <num-threads> = Number of threads - default 5.
@@ -18,10 +19,10 @@ SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]}")
 NTIMES=${1:-"5"}
 shift
 
-echo  "  -  $0 started with $NTIMES parallel threads ..."
+echo  "  - pid $$: $0 started with $NTIMES parallel threads ..."
 
-for i in $(seq $NTIMES); do
-  nohup bash -c "$SCRIPT_DIR/worker.sh $@" < /dev/null &> /dev/null &
+for idx in $(seq "${NTIMES}"); do
+  nohup bash -c "$SCRIPT_DIR/worker.sh $*" < /dev/null &> /dev/null &
   pid=$!
-  echo "  - Started background worker - pid=$pid"
+  echo "  - Started background worker #${idx} - pid=${pid}"
 done

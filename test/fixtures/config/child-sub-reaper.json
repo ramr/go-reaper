@@ -1,0 +1,8 @@
+{
+    "Pid": 0,
+    "DisablePid1Check": true,
+    "EnableChildSubreaper": true,
+    "Status": true,
+    "Debug": true,
+    "Options": 0
+}

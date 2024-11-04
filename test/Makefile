@@ -8,7 +8,7 @@ OOP_INIT_TEST_IMAGE = "reaper/oop-init-config-test"
 
 all:	build
 
-build:	lint vet tests
+build:	deps lint vet image
 
 clean:
 	@echo "  - Removing testpid1 binary ..."
@@ -27,7 +27,7 @@ clean:
 	$(RM) /tmp/reaper-tests/*.log
 
 test:	tests
-tests:	image test-image test-debug-on test-notify test-non-pid1 test-oop-init
+tests:	build test-image test-debug-on test-notify test-non-pid1 test-oop-init
 	@echo "  - All tests passed."
 
 
@@ -35,16 +35,30 @@ tests:	image test-image test-debug-on test-notify test-non-pid1 test-oop-init
 #  Lint and vet targets.
 #
 lint:
-	@echo  "  - Linting sources ..."
+	@echo "  - Linting shell sources ..."
+	@(shellcheck bin/*.sh build/*.sh *.sh || :)
+	@echo "  - shellcheck passed."
+
+	@echo "  - Linting sources ..."
 	gofmt -d -s testpid1.go fixtures/oop-init/testpid1.go
-	@echo  "  - Linter checks passed."
+	@echo "  - Linter checks passed."
 
 vet:
-	@echo  "  - Vetting go sources ..."
+	@echo "  - Vetting go sources ..."
 	go vet testpid1.go
 	go vet fixtures/oop-init/testpid1.go
-	@echo  "  - go vet checks passed."
+	@echo "  - go vet checks passed."
 
+
+#
+#  Update dependencies (modules).
+#
+deps:
+	@echo "  - Update dependencies ..."
+	go mod tidy
+
+	@echo "  - Download go modules ..."
+	go mod download   #  -x
 
 #
 #  Build a single image to test the various reaper fixtures configs with.
@@ -82,14 +96,17 @@ test-status-close:
 	@echo "  - Running reaper image status close test ..."
 	./runtests.sh $(TEST_IMAGE) /reaper/config/status-close-reaper.json
 
+test-non-pid1:	test-child-sub-reaper
+	@echo "  - Running reaper image non pid1 test ..."
+	./runtests.sh $(TEST_IMAGE) /reaper/config/non-pid1-reaper.json
+
+test-child-sub-reaper:
+	@echo "  - Running reaper image non pid1 child-sub-reaper test ..."
+	./runtests.sh $(TEST_IMAGE) /reaper/config/child-sub-reaper.json
 
 #
 #  Custom image tests.
 #
-test-non-pid1:
-	(build/image.sh $(NON_PID1_CONFIG_TEST_IMAGE) "fixtures/non-pid1";  \
-	 ./runtests.sh $(NON_PID1_CONFIG_TEST_IMAGE) )
-
 test-oop-init:
 	(build/image.sh $(OOP_INIT_TEST_IMAGE) "fixtures/oop-init";  \
 	 ./runtests.sh $(OOP_INIT_TEST_IMAGE) )
