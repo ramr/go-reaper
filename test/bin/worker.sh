@@ -11,10 +11,7 @@
 #  Constants.
 readonly DEFAULT_WORKERS=10
 readonly DEFAULT_DELAY_SECS=5
-
-#  Change log file if you want see the script output.
-#    LOGFILE=/tmp/worker.log
-LOGFILE=/dev/null
+readonly LOGFILE=/tmp/worker.log
 
 
 function start_sleeper() {

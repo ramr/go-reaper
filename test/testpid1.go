@@ -20,12 +20,13 @@ const NAME = "testpid1"
 
 // Reaper test options.
 type TestOptions struct {
-	Pid              int
-	Options          int
-	DisablePid1Check bool
-	Debug            bool
-	Status           bool
-	StatusClose      bool
+	Pid                  int
+	Options              int
+	DisablePid1Check     bool
+	EnableChildSubreaper bool
+	Debug                bool
+	Status               bool
+	StatusClose          bool
 }
 
 // Test with a process that sleeps for a short time.
@@ -165,19 +166,21 @@ func startReaper(options *TestOptions) {
 
 	if options.Status {
 		flag := options.StatusClose
+		fmt.Printf("%s: status channel enabled, random close=%v\n",
+			NAME, flag)
 
-		fmt.Printf("%s: testing status channel with %v\n", NAME, flag)
 		// make a buffered channel with max 42 entries.
 		statusChannel = make(chan reaper.Status, 42)
 		go dumpChildExitStatus(statusChannel, flag)
 	}
 
 	config := reaper.Config{
-		Pid:              options.Pid,
-		Options:          options.Options,
-		DisablePid1Check: options.DisablePid1Check,
-		Debug:            options.Debug,
-		StatusChannel:    statusChannel,
+		Pid:                  options.Pid,
+		Options:              options.Options,
+		DisablePid1Check:     options.DisablePid1Check,
+		EnableChildSubreaper: options.EnableChildSubreaper,
+		Debug:                options.Debug,
+		StatusChannel:        statusChannel,
 	}
 
 	go reaper.Start(config)

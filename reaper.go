@@ -7,15 +7,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // Reaper configuration.
 type Config struct {
-	Pid              int
-	Options          int
-	DisablePid1Check bool
-	StatusChannel    chan Status
-	Debug            bool
+	Pid                  int
+	Options              int
+	DisablePid1Check     bool
+	EnableChildSubreaper bool
+	StatusChannel        chan Status
+	Debug                bool
 }
 
 // Reaped child process status information.
@@ -138,9 +141,10 @@ func Reap() {
 	 *  is to reap all processes.
 	 */
 	Start(Config{
-		Pid:              -1,
-		Options:          0,
-		DisablePid1Check: false,
+		Pid:                  -1,
+		Options:              0,
+		DisablePid1Check:     false,
+		EnableChildSubreaper: false,
 	})
 
 } /*  End of [exported] function  Reap.  */
@@ -157,12 +161,24 @@ func Start(config Config) {
 	 *  In most cases, you are better off just using Reap() as that
 	 *  checks if we are running as Pid 1.
 	 */
+	if config.EnableChildSubreaper {
+		/*
+		 *  Enabling the child sub reaper means that any orphaned
+		 *  descendant process will get "reparented" to us.
+		 *  And we then do the reaping when those processes die.
+		 */
+		fmt.Println(" - Enabling child subreaper ...")
+		err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)
+		if err != nil {
+			// Log the error and continue ...
+			fmt.Printf(" - Error enabling subreaper: %v\n", err)
+		}
+	}
+
 	if !config.DisablePid1Check {
 		mypid := os.Getpid()
 		if 1 != mypid {
-			if config.Debug {
-				fmt.Printf(" - Grim reaper disabled, pid not 1\n")
-			}
+			fmt.Println(" - Grim reaper disabled, pid not 1")
 			return
 		}
 	}

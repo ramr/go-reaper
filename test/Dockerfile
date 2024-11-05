@@ -9,5 +9,5 @@ COPY  fixtures/config  /reaper/config
 
 #  Use entrypoint, so we can pass command line parameters for running
 #  the different tests.
-ENTRYPOINT ["/reaper/testpid1"]
+ENTRYPOINT ["/reaper/bin/init.sh"]
 CMD [""]

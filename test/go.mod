@@ -1,7 +1,7 @@
 module reapertest
 
-go 1.23.1
+go 1.14
 
-require github.com/ramr/go-reaper v0.2.1
+require github.com/ramr/go-reaper v0.2.2
 
 replace github.com/ramr/go-reaper => ../
