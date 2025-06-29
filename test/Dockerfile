@@ -1,7 +1,9 @@
 # FROM scratch
 FROM fedora
 
-MAINTAINER  smitram@gmail.com
+LABEL org.opencontainers.image.authors="smitram@gmail.com"
+
+RUN yum install -y procps
 
 COPY  ./bin            /reaper/bin
 COPY  testpid1         /reaper/testpid1

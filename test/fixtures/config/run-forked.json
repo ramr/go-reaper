@@ -1,0 +1,8 @@
+{
+	"DisablePid1Check": false,
+	"ErrorExit": true,
+	"RunForked": true,
+	"Status": true,
+	"Debug": true,
+	"Options": 0
+}

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-#  Usage:  <./worker.sh>  <num-workers>  <sleep-time>
+#  Usage:  $0  <num-workers>  <sleep-time>
 #          where:  <num-workers> = number of workers - default 10.
 #                  <sleep-time>  = max sleep time in seconds - default 5.
 #                                  This is used by the workers to randomly

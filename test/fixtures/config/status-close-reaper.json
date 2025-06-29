@@ -1,7 +1,7 @@
 {
-	"Pid": 0,
+	"Pid": -1,
 	"Debug": true,
-        "Status": true,
-        "StatusClose": true,
+	"Status": true,
+	"StatusClose": true,
 	"Options": 0
 }
