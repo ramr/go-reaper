@@ -1,0 +1,10 @@
+{
+	"Pid": -1,
+	"DisablePid1Check": false,
+	"ErrorExit": true,
+	"WithReaper": true,
+	"WithReaperOption": "not-via-main",
+	"Status": false,
+	"Debug": true,
+	"Options": 0
+}

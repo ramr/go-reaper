@@ -1,0 +1,8 @@
+{
+	"Pid": -1,
+	"DisablePid1Check": false,
+	"WithReaper": true,
+	"Status": true,
+	"Debug": true,
+	"Options": 0
+}

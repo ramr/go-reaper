@@ -27,7 +27,7 @@ clean:
 	$(RM) /tmp/reaper-tests/*.log
 
 test:	tests
-tests:	build test-image test-debug-on test-notify test-non-pid1 test-oop-init
+tests:	build test-image test-options test-non-pid1 test-oop-init
 	@echo "  - All tests passed."
 
 
@@ -75,12 +75,17 @@ image:
 #
 #  Testing targets.
 #
-test-image:
+test-image:	test-default-image test-missing-config
+
+test-default-image:
 	@echo "  - Running reaper image test ..."
 	./runtests.sh $(TEST_IMAGE) ""
 
+test-missing-config:
 	@echo "  - Running reaper image test with missing reaper.json ..."
 	./runtests.sh $(TEST_IMAGE) /reaper/config/missing-404-reaper.json
+
+test-options: test-debug-on test-notify test-run-forked test-swaddled-options
 
 test-debug-on:
 	@echo "  - Running reaper image debug on test ..."
@@ -96,13 +101,35 @@ test-status-close:
 	@echo "  - Running reaper image status close test ..."
 	./runtests.sh $(TEST_IMAGE) /reaper/config/status-close-reaper.json
 
-test-non-pid1:	test-child-sub-reaper
+test-run-forked:
+	@echo "  - Running reaper image RunForked test ..."
+	./runtests.sh $(TEST_IMAGE) /reaper/config/run-forked.json
+
+test-swaddled-options:	test-with-reaper test-with-reaper-not-main test-with-reaper-panic
+
+test-with-reaper:
+	@echo "  - Running reaper image WithReaper test ..."
+	./runtests.sh $(TEST_IMAGE) /reaper/config/with-reaper.json
+
+test-with-reaper-not-main:
+	@echo "  - Running reaper image WithReaper not main caller test ..."
+	./runtests.sh $(TEST_IMAGE) /reaper/config/with-reaper-not-main.json
+
+test-with-reaper-panic:
+	@echo "  - Running reaper image WithReaper and child panic test ..."
+	./runtests.sh $(TEST_IMAGE) /reaper/config/with-reaper-panic.json || :
+
+test-non-pid1:	test-non-pid1-reaper test-non-pid1-child-sub-reaper
+
+test-non-pid1-reaper:
 	@echo "  - Running reaper image non pid1 test ..."
 	./runtests.sh $(TEST_IMAGE) /reaper/config/non-pid1-reaper.json
 
-test-child-sub-reaper:
+test-non-pid1-child-sub-reaper:
 	@echo "  - Running reaper image non pid1 child-sub-reaper test ..."
 	./runtests.sh $(TEST_IMAGE) /reaper/config/child-sub-reaper.json
+
+
 
 #
 #  Custom image tests.
@@ -113,5 +140,9 @@ test-oop-init:
 
 
 .PHONY:	build clean test tests lint vet image
-.PHONY:	test-image test-debug-on test-notify test-status test-status-close
-.PHONY:	test-non-pid1 test-oop-init
+.PHONY:	test-image test-options test-non-pid1 test-oop-init
+.PHONY:	test-default-image test-missing-config
+.PHONY:	test-debug-on test-notify test-run-forked test-with-reaper-options
+.PHONY:	test-status test-status-close
+.PHONY:	test-with-reaper test-with-reaper-not-main test-with-reaper-panic 
+.PHONY:	test-non-pid1-reaper test-non-pid1-child-sub-reaper test-oop-init

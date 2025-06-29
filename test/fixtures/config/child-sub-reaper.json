@@ -1,5 +1,4 @@
 {
-    "Pid": 0,
     "DisablePid1Check": true,
     "EnableChildSubreaper": true,
     "Status": true,

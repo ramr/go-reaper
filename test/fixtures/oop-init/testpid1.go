@@ -137,6 +137,8 @@ func startWorkers() {
 
 	fmt.Printf("%s: Started worker: %s %s\n", NAME, script, args)
 
+	cmd.Wait()
+
 } /*  End of function  startWorkers.  */
 
 // Load reaper json and make test options.
