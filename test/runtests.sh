@@ -15,6 +15,40 @@ logfile="/tmp/reaper-tests/test.log"
 
 
 #
+#  Run test locally [on host].
+#
+function _run_local_test() {
+    local testpid=-1
+    local cfg="./fixtures/config/local-test.json"
+
+    echo "  - Starting local test process in the background ..."
+    echo "    Log file = ${SCENARIO_LOG}"
+    "${SCRIPT_DIR}/testpid1"  "${cfg}" > "${SCENARIO_LOG}" 2>&1  &
+    testpid=$!
+
+    echo "  - Local test process pid = ${testpid}"
+
+    echo "  - Snoozing ..."
+    sleep "${MAX_SLEEP_TIME}"
+
+    echo "  - Sending SIGTERM to the child of the test process ..."
+
+    #  Lil' hacky but it does the job.
+    "${SCRIPT_DIR}/bin/send-child-signal.sh" TERM &
+
+    local exitcode=0
+
+    echo "  - Waiting for local test process ${testpid} to exit ..."
+    wait "${testpid}"
+    exitcode=$?
+
+    echo "  - Local test process ${testpid} exit code = ${exitcode}"
+    return ${exitcode}
+
+}  #  End of function  _run_local_test.
+
+
+#
 #  Return list of sleeper processes.
 #
 function _get_sleepers() {
@@ -188,6 +222,31 @@ function _run_test_scenario() {
     echo "  - Removing any existing ${SCENARIO_LOG} ${WORKER_LOG} ... "
     rm -f "${SCENARIO_LOG}" "${WORKER_LOG}"
 
+    local imageid=""
+    if [ "osx-$(uname -s)" == "osx-Darwin" ]; then
+        if [ ":${name}" != ":on-host-test" ]; then
+            echo "  - Skipping ${name} test on osx ..."  |  \
+                tee -a "${SCENARIO_LOG}"
+            return 0
+        fi
+    else
+        imageid=$(docker image ls -q "${image}" || :)
+    fi
+
+    if [ -z "${imageid}" ]; then
+        echo "  - Running local [on-host] test ..."
+
+        if _run_local_test ; then
+            echo ""
+            echo "OK: All tests passed - (1/1)"
+            exit 0
+        fi
+
+        echo ""
+        echo "FAIL: Local tests failed - (1/1)"
+        exit 65
+    fi
+
     echo "  - Starting docker container running image ${image} with"
     echo "    command line arguments: $*"
     local elcid=""
@@ -296,6 +355,7 @@ function _run_tests() {
     fi
 
     logfile="/tmp/reaper-tests/${name}.log"
+    mkdir -p "$(dirname "${logfile}")"
 
     _run_test_scenario  "$@"  | tee "${logfile}"
     cat "${SCENARIO_LOG}" >> "${logfile}"

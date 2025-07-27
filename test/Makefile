@@ -5,6 +5,8 @@ DEBUG_ON_CONFIG_TEST_IMAGE = "reaper/debug-on-config-test"
 NON_PID1_CONFIG_TEST_IMAGE = "reaper/non-pid1-config-test"
 OOP_INIT_TEST_IMAGE = "reaper/oop-init-config-test"
 
+UNAME_S := $(shell uname -s)
+
 
 all:	build
 
@@ -21,13 +23,13 @@ clean:
 	docker rmi $(OOP_INIT_TEST_IMAGE) || :
 
 	@echo "  - Pruning docker environment ..."
-	docker system prune -f
+	docker system prune -f || :
 
 	@echo "  - Removing test logs ..."
 	$(RM) /tmp/reaper-tests/*.log
 
 test:	tests
-tests:	build test-image test-options test-non-pid1 test-oop-init
+tests:	build test-local test-image
 	@echo "  - All tests passed."
 
 
@@ -68,14 +70,28 @@ image:
 	$(RM) testpid1
 	go build testpid1.go
 
+ifeq ($(UNAME_S),Darwin)
+	@echo "  - Skipping docker image $(TEST_IMAGE) build on osx ..."
+endif
+
+ifeq ($(UNAME_S),Linux)
 	@echo "  - Building docker image $(TEST_IMAGE) ..."
 	docker build -t $(TEST_IMAGE) .
+endif
 
 
 #
 #  Testing targets.
 #
-test-image:	test-default-image test-missing-config
+testpid1:
+	@echo "  - Building testpid1.go ..."
+	go build testpid1.go
+
+test-local:	testpid1
+	@echo "  - Running local [on-host] reaper test ..."
+	./runtests.sh '#@$%^*()-_+=/on-host-test'
+
+test-image:	test-default-image test-missing-config test-config
 
 test-default-image:
 	@echo "  - Running reaper image test ..."
@@ -84,6 +100,8 @@ test-default-image:
 test-missing-config:
 	@echo "  - Running reaper image test with missing reaper.json ..."
 	./runtests.sh $(TEST_IMAGE) /reaper/config/missing-404-reaper.json
+
+test-config:	test-options test-non-pid1 test-oop-init
 
 test-options: test-debug-on test-notify test-run-forked test-swaddled-options
 
@@ -135,13 +153,21 @@ test-non-pid1-child-sub-reaper:
 #  Custom image tests.
 #
 test-oop-init:
-	(build/image.sh $(OOP_INIT_TEST_IMAGE) "fixtures/oop-init";  \
-	 ./runtests.sh $(OOP_INIT_TEST_IMAGE) )
+ifeq ($(UNAME_S),Darwin)
+	@echo "  - Skipping image $(OOP_INIT_TEST_IMAGE) build on osx ..."
+endif
+
+ifeq ($(UNAME_S),Linux)
+	./build/image.sh $(OOP_INIT_TEST_IMAGE) "fixtures/oop-init"
+endif
+
+	@echo "  - Running reaper oop-init image test ..."
+	./runtests.sh $(OOP_INIT_TEST_IMAGE)
 
 
 .PHONY:	build clean test tests lint vet image
-.PHONY:	test-image test-options test-non-pid1 test-oop-init
-.PHONY:	test-default-image test-missing-config
+.PHONY:	test-local test-image test-default-image test-missing-config test-config
+.PHONY:	test-options test-non-pid1 test-oop-init
 .PHONY:	test-debug-on test-notify test-run-forked test-with-reaper-options
 .PHONY:	test-status test-status-close
 .PHONY:	test-with-reaper test-with-reaper-not-main test-with-reaper-panic 

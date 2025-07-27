@@ -9,8 +9,6 @@ import (
 	"regexp"
 	"runtime"
 	"syscall"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -236,7 +234,7 @@ func Start(config Config) {
 		 *  And we then do the reaping when those processes die.
 		 */
 		fmt.Println(" - Enabling child subreaper ...")
-		err := unix.Prctl(unix.PR_SET_CHILD_SUBREAPER, 1, 0, 0, 0)
+		err := EnableChildSubReaper()
 		if err != nil {
 			// Log the error and continue ...
 			fmt.Printf(" - Error enabling subreaper: %v\n", err)
@@ -278,7 +276,7 @@ func RunForked(config Config) {
 
 	if config.Debug {
 		fmt.Printf(" - Reaper parent pid = %d\n", os.Getpid())
-		fmt.Printf(" - Starting reaper ...")
+		fmt.Println(" - Starting reaper ...")
 	}
 
 	go Start(config)
