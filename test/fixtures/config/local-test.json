@@ -1,0 +1,11 @@
+{
+	"Pid": -1,
+	"DisablePid1Check": true,
+	"EnableChildSubreaper": true,
+	"ErrorExit": true,
+	"WithReaper": true,
+	"WithReaperOption": "child-panic",
+	"Status": false,
+	"Debug": true,
+	"Options": 0
+}

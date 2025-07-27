@@ -276,7 +276,7 @@ func RunForked(config Config) {
 
 	if config.Debug {
 		fmt.Printf(" - Reaper parent pid = %d\n", os.Getpid())
-		fmt.Printf(" - Starting reaper ...")
+		fmt.Println(" - Starting reaper ...")
 	}
 
 	go Start(config)
